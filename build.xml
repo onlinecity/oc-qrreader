@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project name="qrcoderader" default="normal">
+	<property file="build.properties" />
+	<taskdef resource="antenna.properties" classpath="${antenna}" />
+
+	<path id="wtk-build-path">
+		<fileset dir="${wtk.home}/lib">
+			<include name="cldcapi11.jar" />
+			<include name="midpapi20.jar" />
+			<include name="mmapi.jar" />
+			<include name="jsr234.jar" />
+			<include name="wma20.jar" />
+		</fileset>
+	</path>
+
+	<property name="preverify" refid="wtk-build-path" />
+
+	<path id="bootclasspath">
+		<fileset dir="${wtk.home}/lib">
+			<include name="cldcapi11.jar" />
+			<include name="midpapi20.jar" />
+		</fileset>
+	</path>
+
+	<target name="init">
+		<mkdir dir="build" />
+		<mkdir dir="build/${arch}/${build.version}bin" />
+		<copy todir="build/${arch}/${build.version}src">
+			<fileset dir="src/" />
+		</copy>
+		<copy todir="build/${arch}/${build.version}bin/">
+			<fileset file="res/icon.png" />
+		</copy>
+	</target>
+
+	<target name="build" depends="init">
+		<!-- preprocess code -->
+		<!--
+		<wtkpreprocess device="TestPhone/TP" 
+			srcdir="build/${arch}/${build.version}src" destdir="build/${arch}/${build.version}src" symbols="${target-symbol}${symbols}">
+			
+		</wtkpreprocess>
+		-->
+		<wtkpreprocess device="Generic/s3" srcdir="build/${arch}/${build.version}src" destdir="build/${arch}/${build.version}src" printsymbols="yes" verbose="no">
+
+		</wtkpreprocess>
+
+		<!-- compile code -->
+		<javac srcdir="build/${arch}/${build.version}src/" destdir="build/${arch}/${build.version}bin/" source="1.4" target="1.4" optimize="true" debug="false" fork="true">
+			<classpath refid="wtk-build-path" />
+		</javac>
+
+
+		<!-- preverify code -->
+		<exec executable="${wtk.home}/bin/preverify1.1" failonerror="true">
+			<arg line="-classpath '${preverify}' -d build/${arch}/${build.version}bin/ build/${arch}/${build.version}bin/" />
+		</exec>
+
+		<!-- create manifest file -->
+		<copy file="templates/${manifest-template}" tofile="build/${arch}/${build.version}/MANIFEST.MF" overwrite="true">
+			<filterset>
+				<filter token="APP_NAME" value="${appname}" />
+				<filter token="ICON" value="${icon}" />
+				<filter token="MIDLET" value="${midlet}" />
+				<filter token="VERSION" value="${version}" />
+				<filter token="DESCRIPTION" value="${description}" />
+				<filter token="JAR_NAME" value="${jarname}" />
+				<filter token="JAR_SIZE" value="${jar-size}" />
+				<filter token="VENDOR" value="${vendor}" />
+				<filter token="URL" value="${url}" />
+			</filterset>
+		</copy>
+		<!-- pack jar file -->
+		<jar jarfile="build/${arch}/${build.version}/tmp.jar" basedir="build/${arch}/${build.version}bin/" manifest="build/${arch}/${build.version}/MANIFEST.MF" />
+		<!-- obfuscate and optimize jar file -->
+
+		<java jar="${proguard}/proguard.jar" fork="true" failonerror="true">
+			<arg value="-injars build/${arch}/${build.version}tmp.jar" />
+			<arg value="-outjars build/${arch}/${build.version}${jarname}.jar" />
+			<arg value="-libraryjars ${wtk.home}/lib/cldcapi11.jar" />
+			<arg value="-libraryjars ${wtk.home}/lib/midpapi20.jar" />
+			<arg value="-libraryjars ${wtk.home}/lib/mmapi.jar" />
+			<arg value="-libraryjars ${wtk.home}/lib/jsr234.jar" />
+			<arg value="-libraryjars ${wtk.home}/lib/wma20.jar" />
+			<arg value="-microedition" />
+			<arg value="-overloadaggressively" />
+			<arg value="-allowaccessmodification" />
+			<arg value="-optimizationpasses 9" />
+			<arg value="-useuniqueclassmembernames" />
+			<arg value="-flattenpackagehierarchy 'qrr'" />
+			<arg value="-keep public class ${midlet}" />
+			<arg value="-adaptresourcefilenames /**.png" />
+			<arg value="-adaptresourcefilecontents /**.png,**.properties,META-INF/MANIFEST.MF" />
+			<arg value="-verbose" />
+		</java>
+
+		<!-- create jad file -->
+
+		<length file="build/${arch}/${build.version}/${jarname}.jar" property="jar-size" />
+		<copy file="templates/${jad-template}" tofile="build/${arch}/${build.version}/${jarname}.jad" overwrite="true">
+			<filterset>
+				<filter token="APP_NAME" value="${appname}" />
+				<filter token="ICON" value="${icon}" />
+				<filter token="MIDLET" value="${midlet}" />
+				<filter token="VERSION" value="${version}" />
+				<filter token="DESCRIPTION" value="${description}" />
+				<filter token="JAR_NAME" value="${jarname}" />
+				<filter token="JAR_SIZE" value="${jar-size}" />
+				<filter token="VENDOR" value="${vendor}" />
+				<filter token="URL" value="${url}" />
+			</filterset>
+		</copy>
+
+		<!-- clean up -->
+		<delete file="build/${arch}/${build.version}/tmp.jar" />
+
+		<!-- deploy -->
+		<copy file="build/${arch}/${build.version}/${jarname}.jar" tofile="${deploy}/${jarname}/${arch}/${build.version}/${jarname}.jar" />
+		<copy file="build/${arch}/${build.version}/${jarname}.jad" tofile="${deploy}/${jarname}/${arch}/${build.version}/${jarname}.jad" />
+
+	</target>
+
+	<target name="clean">
+		<delete dir="build" />
+	</target>
+
+	<target name="pptest" depends="init">
+		<property name="device" value="Nokia/s3" />
+
+		<wtkpreprocess device="Nokia/s3" srcdir="build/${arch}/${build.version}src" destdir="build/${arch}/${build.version}src" printsymbols="yes" verbose="no">
+
+		</wtkpreprocess>
+	</target>
+
+	<target name="normal">
+		<antcall target="clean" />
+		<property name="pgopt" value="" />
+		<property name="arch" value="devel" />
+		<property name="symbols" value="" />
+		<antcall target="release-s4-amms" />
+	</target>
+
+	<!-- Versions -->
+	<target name="all">
+		<antcall target="generic" />
+		<antcall target="sonyericsson" />
+		<antcall target="nokia" />
+		<antcall target="motorola" />
+		<antcall target="samsung" />
+	</target>
+
+	<target name="generic">
+		<property name="pgopt" value="" />
+		<property name="arch" value="generic" />
+		<property name="symbols" value="" />
+
+		<antcall target="release-s3" />
+		<antcall target="release-s3-amms" />
+		<antcall target="release-s4" />
+		<antcall target="release-s4-amms" />
+	</target>
+
+	<target name="sonyericsson">
+		<property name="pgopt" value="" />
+		<property name="arch" value="sonyericsson" />
+		<property name="symbols" value=",${arch}" />
+		<antcall target="release-s3" />
+		<antcall target="release-s3-amms" />
+		<antcall target="release-s4" />
+		<antcall target="release-s4-amms" />
+	</target>
+
+	<target name="nokia">
+		<property name="pgopt" value="" />
+		<property name="arch" value="nokia" />
+		<property name="symbols" value=",${arch}" />
+		<antcall target="release-s3" />
+		<antcall target="release-s3-amms" />
+		<antcall target="release-s4" />
+		<antcall target="release-s4-amms" />
+	</target>
+
+	<target name="motorola">
+		<property name="pgopt" value="" />
+		<property name="arch" value="motorola" />
+		<property name="symbols" value=",${arch}" />
+		<!-- property name="symbols" value=",motorola" /-->
+		<antcall target="release-s3" />
+		<antcall target="release-s3-amms" />
+		<antcall target="release-s4" />
+		<antcall target="release-s4-amms" />
+	</target>
+
+	<target name="samsung">
+		<property name="pgopt" value="" />
+		<property name="arch" value="samsung" />
+		<property name="symbols" value=",${arch}" />
+		<antcall target="release-s3" />
+		<antcall target="release-s3-amms" />
+		<antcall target="release-s4" />
+		<antcall target="release-s4-amms" />
+	</target>
+
+	<target name="release-s3">
+		<property name="build.version" value="s3/" />
+		<property name="graphics" value="s3" />
+		<property name="target-symbol" value="s3" />
+		<antcall target="build" />
+	</target>
+
+	<target name="release-s4">
+		<property name="build.version" value="s4/" />
+		<property name="graphics" value="s4" />
+		<property name="target-symbol" value="s4" />
+		<antcall target="build" />
+	</target>
+
+	<target name="release-s3-amms">
+		<property name="build.version" value="s3-amms/" />
+		<property name="graphics" value="s3" />
+		<property name="target-symbol" value="amms,s3" />
+		<antcall target="build" />
+	</target>
+
+	<target name="release-s4-amms">
+		<property name="build.version" value="s4-amms/" />
+		<property name="graphics" value="s4" />
+		<property name="target-symbol" value="amms,s4" />
+		<antcall target="build" />
+	</target>
+
+
+</project>

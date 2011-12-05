@@ -1,0 +1,11 @@
+MIDlet-Jar-Size: @JAR_SIZE@
+MIDlet-1: @APP_NAME@, @ICON@, @MIDLET@
+MIDlet-Jar-URL: @JAR_NAME@.jar
+MIDlet-Icon: @ICON@
+MicroEdition-Configuration: CLDC-1.1
+MIDlet-Version: @VERSION@
+MIDlet-Info-URL: @URL@
+MIDlet-Description: @DESCRIPTION@
+MIDlet-Name: @APP_NAME@
+MIDlet-Vendor: @VENDOR@
+MicroEdition-Profile: MIDP-2.0
